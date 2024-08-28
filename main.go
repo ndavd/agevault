@@ -16,8 +16,12 @@ import (
 	"github.com/ndavd/agevault/internal/utils"
 )
 
+func Version() string {
+	return "v1.0.0"
+}
+
 func Usage() {
-	fmt.Println("agevault v1.0.0")
+	fmt.Printf("agevault %s", Version())
 	fmt.Println()
 	fmt.Println("lock/unlock directory with passphrase-protected identity file")
 	fmt.Println("usage: agevault [vault-name] lock|unlock|keygen")
@@ -155,6 +159,11 @@ func Unlock(vaultName string, trimmedVaultName string) error {
 
 func main() {
 	args := os.Args[1:]
+
+	if len(args) == 1 && args[0] == "--version" {
+		fmt.Println(Version())
+		os.Exit(0)
+	}
 
 	if len(args) != 2 {
 		Usage()
