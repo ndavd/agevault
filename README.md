@@ -12,6 +12,15 @@ Like age, it features no config options, allowing for a straightforward secure f
 
 Also, this is a project in early-development and hasn't been thoroughly tested. So far, I've tested it on Linux.
 
+## Installation
+
+Download the pre-build binaries from the [latest release](https://github.com/ndavd/agevault/releases/latest).
+
+Or using `go`:
+```
+$ go install github.com/ndavd/agevault@latest
+```
+
 ## Usage
 
 ```
