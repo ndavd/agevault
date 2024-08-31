@@ -92,6 +92,5 @@ func IsTar(r io.Reader) bool {
 	if _, err := io.ReadFull(r, h); err != nil {
 		return false
 	}
-	fmt.Println(h, []byte("ustar"))
 	return bytes.Equal(h[257:], []byte("ustar"))
 }
