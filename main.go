@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 
@@ -85,16 +83,11 @@ func Lock(vaultName string, trimmedVaultName string) (string, error) {
 	if !vaultExists || !vaultIsDir {
 		return "", fmt.Errorf("missing %s", vaultName)
 	}
-	var zipBuffer bytes.Buffer
-	zippedWriter := bufio.NewWriter(&zipBuffer)
-	if err = archive.ZipDirectory(vaultName, zippedWriter); err != nil {
-		return "", fmt.Errorf("could not zip: %s", err.Error())
+	var tarBuffer bytes.Buffer
+	if err = archive.TarDirectory(vaultName, &tarBuffer); err != nil {
+		return "", fmt.Errorf("could not tar: %s", err.Error())
 	}
-	zipContents, err := io.ReadAll(&zipBuffer)
-	if err != nil {
-		return "", fmt.Errorf("could not read zip data: %s", err.Error())
-	}
-	if err = crypt.EncryptToFile(encryptedFilename, zipContents, recipient); err != nil {
+	if err = crypt.EncryptToFile(encryptedFilename, tarBuffer.Bytes(), recipient); err != nil {
 		return "", fmt.Errorf("could not encrypt: %s", err.Error())
 	}
 	if err = shredder.ShredDir(vaultName, 3); err != nil {
@@ -130,26 +123,30 @@ func Unlock(vaultName string, trimmedVaultName string) error {
 	}
 	scryptIdentity, err := age.NewScryptIdentity(pw)
 	var identityBuffer bytes.Buffer
-	identityWriter := bufio.NewWriter(&identityBuffer)
-	if err = crypt.DecryptToWriter(identityWriter, encryptedIdentity, scryptIdentity); err != nil {
+	if err = crypt.DecryptToWriter(&identityBuffer, encryptedIdentity, scryptIdentity); err != nil {
 		return fmt.Errorf("bad passphrase: %s", err.Error())
 	}
 	identity, err := age.ParseIdentities(&identityBuffer)
 	if err != nil || len(identity) != 1 {
 		return fmt.Errorf("could not parse decrypted identity: %s", err.Error())
 	}
-	var zipBuffer bytes.Buffer
-	zipWriter := bufio.NewWriter(&zipBuffer)
-	err = crypt.DecryptToWriter(zipWriter, encryptedVault, identity[0])
+	var tarBuffer bytes.Buffer
+	err = crypt.DecryptToWriter(&tarBuffer, encryptedVault, identity[0])
 	if err != nil {
 		return fmt.Errorf("could not decrypt %s: %s", vaultName, err.Error())
 	}
-	if err = zipWriter.Flush(); err != nil {
-		return fmt.Errorf("could not flush zip writer: %s", err.Error())
-	}
-	zipReader := bytes.NewReader(zipBuffer.Bytes())
-	if err = archive.UnZip(*zipReader, "."); err != nil {
-		return fmt.Errorf("could not unzip zipped %s: %s", vaultName, err.Error())
+	tarReader := bytes.NewReader(tarBuffer.Bytes())
+	if archive.IsZip(tarReader) {
+		// NOTE: Ensure backwards compatibility with v1.0.0
+		fmt.Println("found deprecated archiving format...")
+		zipReader := bytes.NewReader(tarBuffer.Bytes())
+		if err = archive.UnZip(*zipReader, "."); err != nil {
+			return fmt.Errorf("could not unzip zipped %s: %s", vaultName, err.Error())
+		}
+	} else {
+		if err = archive.UnTar(tarBuffer, "."); err != nil {
+			return fmt.Errorf("could not untar tarred %s: %s", vaultName, err.Error())
+		}
 	}
 	if err = shredder.ShredFile(encryptedVaultFilename, 1); err != nil {
 		return fmt.Errorf("could not shred %s: %s", encryptedVaultFilename, err.Error())
