@@ -53,7 +53,7 @@ confirm identity passphrase:
 
 ```
 $ agevault my-vault lock
-my-vault SECURED with age14tpkpl6vexufah8eq5dgrd5zy4xqs4slynh26j5n7gvxs87xhguqwu9zqc
+my-vault LOCKED with age14tpkpl6vexufah8eq5dgrd5zy4xqs4slynh26j5n7gvxs87xhguqwu9zqc
 ```
 
 3. Unlock vault
@@ -61,7 +61,7 @@ my-vault SECURED with age14tpkpl6vexufah8eq5dgrd5zy4xqs4slynh26j5n7gvxs87xhguqwu
 ```
 $ agevault my-vault unlock
 enter passphrase for identity file ".age14tpkpl6vexufah8eq5dgrd5zy4xqs4slynh26j5n7gvxs87xhguqwu9zqc.my-vault.key.age": 
-my-vault DECRYPTED
+my-vault UNLOCKED
 ```
 
 4. That's it. Do your changes, lock it again, etc.
