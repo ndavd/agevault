@@ -15,7 +15,7 @@ import (
 )
 
 func Version() string {
-	return "v1.1.0"
+	return "v1.1.1"
 }
 
 func Usage() {
