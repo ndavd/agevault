@@ -35,7 +35,7 @@ $ go install github.com/ndavd/agevault@latest
 
 ```
 lock/unlock directory with passphrase-protected identity file
-usage: agevault [vault-name] lock|unlock|keygen
+usage: agevault [directory-name] lock|unlock|keygen
 ```
 
 Securing `my-vault/`:

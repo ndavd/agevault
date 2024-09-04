@@ -15,14 +15,14 @@ import (
 )
 
 func Version() string {
-	return "v1.1.0"
+	return "v1.1.1"
 }
 
 func Usage() {
 	fmt.Printf("agevault %s", Version())
 	fmt.Println()
 	fmt.Println("lock/unlock directory with passphrase-protected identity file")
-	fmt.Println("usage: agevault [vault-name] lock|unlock|keygen")
+	fmt.Println("usage: agevault [directory-name] lock|unlock|keygen")
 	os.Exit(0)
 }
 
@@ -186,7 +186,7 @@ func main() {
 		if err != nil {
 			errMsg(err)
 		}
-		fmt.Printf("%s SECURED with %s\n", vaultName, recipientString)
+		fmt.Printf("%s LOCKED with %s\n", vaultName, recipientString)
 		return
 	}
 
@@ -195,7 +195,7 @@ func main() {
 		if err != nil {
 			errMsg(err)
 		}
-		fmt.Printf("%s DECRYPTED\n", vaultName)
+		fmt.Printf("%s UNLOCKED\n", vaultName)
 		return
 	}
 
