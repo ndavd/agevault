@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func UnZip(inputReader bytes.Reader, outputDestination string) error {
+func UnZip(inputReader bytes.Reader, outputDestination string, vaultName string) error {
 	reader, err := zip.NewReader(&inputReader, inputReader.Size())
 	if err != nil {
 		return err
@@ -20,7 +20,7 @@ func UnZip(inputReader bytes.Reader, outputDestination string) error {
 		return err
 	}
 	for _, f := range reader.File {
-		err := unzipFile(f, destination)
+		err := unzipFile(f, destination, vaultName)
 		if err != nil {
 			return err
 		}
@@ -28,9 +28,10 @@ func UnZip(inputReader bytes.Reader, outputDestination string) error {
 	return nil
 }
 
-func unzipFile(f *zip.File, destination string) error {
+func unzipFile(f *zip.File, destination string, vaultName string) error {
 	path := filepath.Join(destination, f.Name)
-	if !strings.HasPrefix(path, filepath.Clean(destination)+string(os.PathSeparator)) {
+	vaultDir := filepath.Join(destination, vaultName)
+	if path != vaultDir && !strings.HasPrefix(path, vaultDir+string(os.PathSeparator)) {
 		return fmt.Errorf("invalid file path: %s", path)
 	}
 	if f.FileInfo().IsDir() {

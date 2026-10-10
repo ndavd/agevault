@@ -48,7 +48,7 @@ func TarDirectory(inputSource string, destinationWriter io.Writer) error {
 	})
 }
 
-func UnTar(inputBuffer bytes.Buffer, outputDestination string) error {
+func UnTar(inputBuffer bytes.Buffer, outputDestination string, vaultName string) error {
 	reader := tar.NewReader(&inputBuffer)
 	destination, err := filepath.Abs(outputDestination)
 	if err != nil {
@@ -62,7 +62,7 @@ func UnTar(inputBuffer bytes.Buffer, outputDestination string) error {
 		if err != nil {
 			return err
 		}
-		err = untarFile(reader, header, destination)
+		err = untarFile(reader, header, destination, vaultName)
 		if err != nil {
 			return err
 		}
@@ -70,9 +70,10 @@ func UnTar(inputBuffer bytes.Buffer, outputDestination string) error {
 	return nil
 }
 
-func untarFile(r *tar.Reader, h *tar.Header, destination string) error {
+func untarFile(r *tar.Reader, h *tar.Header, destination string, vaultName string) error {
 	path := filepath.Join(destination, h.Name)
-	if !strings.HasPrefix(path, filepath.Clean(destination)+string(os.PathSeparator)) {
+	vaultDir := filepath.Join(destination, vaultName)
+	if path != vaultDir && !strings.HasPrefix(path, vaultDir+string(os.PathSeparator)) {
 		return fmt.Errorf("invalid file path: %s", path)
 	}
 	if h.FileInfo().IsDir() {
