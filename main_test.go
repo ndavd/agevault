@@ -104,3 +104,27 @@ func TestLockUnlock(t *testing.T) {
 
 	assertVaultUnlocked(t)
 }
+
+func TestLockRefusesHardLinks(t *testing.T) {
+	runInIsolatedDir(t)
+
+	if err := os.Mkdir(testVaultName, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile("outside.txt", []byte(testFooContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link("outside.txt", filepath.Join(testVaultName, testFooName)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Keygen(testVaultName, testPassphrase); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Lock(testVaultName, testVaultName); err == nil {
+		t.Fatal("Lock() succeeded, want hard link error")
+	}
+	if got, _ := os.ReadFile("outside.txt"); string(got) != testFooContent {
+		t.Fatalf("outside.txt = %q, want %q", got, testFooContent)
+	}
+}
