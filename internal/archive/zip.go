@@ -53,8 +53,13 @@ func unzipFile(f *zip.File, destination string, vaultName string) error {
 		return err
 	}
 	defer zippedFile.Close()
-	_, err = io.Copy(destinationFile, zippedFile)
-	return err
+	if _, err = io.Copy(destinationFile, zippedFile); err != nil {
+		return err
+	}
+	if err = destinationFile.Sync(); err != nil {
+		return err
+	}
+	return destinationFile.Close()
 }
 
 func IsZip(r io.Reader) bool {
