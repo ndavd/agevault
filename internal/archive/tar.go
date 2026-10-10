@@ -25,6 +25,9 @@ func TarDirectory(inputSource string, destinationWriter io.Writer) error {
 		if err != nil {
 			return err
 		}
+		if hasHardLinks(info) {
+			return fmt.Errorf("%s has hard links", path)
+		}
 		header, err := tar.FileInfoHeader(info, "")
 		if err != nil {
 			return err
