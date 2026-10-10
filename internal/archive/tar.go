@@ -87,8 +87,13 @@ func untarFile(r *tar.Reader, h *tar.Header, destination string, vaultName strin
 		return err
 	}
 	defer destinationFile.Close()
-	_, err = io.CopyN(destinationFile, r, h.Size)
-	return err
+	if _, err = io.CopyN(destinationFile, r, h.Size); err != nil {
+		return err
+	}
+	if err = destinationFile.Sync(); err != nil {
+		return err
+	}
+	return destinationFile.Close()
 }
 
 func IsTar(r io.Reader) bool {

@@ -24,7 +24,13 @@ func EncryptToFile(destinationFilename string, data []byte, recipient age.Recipi
 	if _, err = writeCloser.Write(data); err != nil {
 		return err
 	}
-	return writeCloser.Close()
+	if err = writeCloser.Close(); err != nil {
+		return err
+	}
+	if err = file.Sync(); err != nil {
+		return err
+	}
+	return file.Close()
 }
 
 func DecryptToWriter(destinationWriter io.Writer, encryptedDataReader io.Reader, identity age.Identity) error {
