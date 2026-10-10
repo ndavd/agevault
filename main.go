@@ -136,11 +136,11 @@ func Unlock(vaultName string, trimmedVaultName string, getPassphrase func(identi
 		// NOTE: Ensure backwards compatibility with v1.0.0
 		fmt.Println("found deprecated archiving format...")
 		zipReader := bytes.NewReader(tarBuffer.Bytes())
-		if err = archive.UnZip(*zipReader, "."); err != nil {
+		if err = archive.UnZip(*zipReader, ".", vaultName); err != nil {
 			return fmt.Errorf("could not unzip zipped %s: %s", vaultName, err.Error())
 		}
 	} else {
-		if err = archive.UnTar(tarBuffer, "."); err != nil {
+		if err = archive.UnTar(tarBuffer, ".", vaultName); err != nil {
 			return fmt.Errorf("could not untar tarred %s: %s", vaultName, err.Error())
 		}
 	}
