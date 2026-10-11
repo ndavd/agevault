@@ -97,5 +97,5 @@ provides the minimal infrastructure required for `age` to work as a directory en
 
 ## Planned features
 
-- Post-quantum keys
-- Multi-user vault support
+- [ ] Post-quantum keys
+- [ ] Multi-user vault support
