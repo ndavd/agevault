@@ -24,7 +24,7 @@ func Usage() {
 	fmt.Printf("agevault %s", Version())
 	fmt.Println()
 	fmt.Println("lock/unlock directory with passphrase-protected identity file")
-	fmt.Println("usage: agevault [directory-name] lock|unlock|keygen")
+	fmt.Println("usage: agevault [directory-name] lock|unlock|keygen [-pq]")
 	os.Exit(0)
 }
 
@@ -64,7 +64,22 @@ func migrateLegacyRecipient(vaultName string, trimmedVaultName string) error {
 	return nil
 }
 
-func Keygen(vaultName string, trimmedVaultName string, passphrase string) (string, string, error) {
+func generateIdentity(postQuantum bool) (fmt.Stringer, recipients.Recipient, error) {
+	if postQuantum {
+		identity, err := age.GenerateHybridIdentity()
+		if err != nil {
+			return nil, nil, err
+		}
+		return identity, identity.Recipient(), nil
+	}
+	identity, err := age.GenerateX25519Identity()
+	if err != nil {
+		return nil, nil, err
+	}
+	return identity, identity.Recipient(), nil
+}
+
+func Keygen(vaultName string, trimmedVaultName string, passphrase string, postQuantum bool) (string, string, error) {
 	encryptedExists, encryptedIsDir := utils.Exists(fmt.Sprintf("%s.age", vaultName))
 	if encryptedExists && !encryptedIsDir {
 		return "", "", errors.New("vault is locked, unlock it first")
@@ -72,11 +87,18 @@ func Keygen(vaultName string, trimmedVaultName string, passphrase string) (strin
 	if err := os.MkdirAll(vaultName, 0o700); err != nil {
 		return "", "", fmt.Errorf("could not create %s: %s", vaultName, err.Error())
 	}
-	identity, err := age.GenerateX25519Identity()
+	// NOTE: age refuses to mix post-quantum and X25519 recipients
+	if existing, err := recipients.Read(vaultName); err == nil {
+		if _, isPostQuantum := existing[0].(*age.HybridRecipient); isPostQuantum != postQuantum {
+			return "", "", errors.New("can't mix post-quantum and X25519 recipients in the same vault")
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return "", "", fmt.Errorf("could not read recipients: %s", err.Error())
+	}
+	identity, recipient, err := generateIdentity(postQuantum)
 	if err != nil {
 		return "", "", err
 	}
-	recipient := identity.Recipient()
 	fingerprint := crypt.Fingerprint(recipient)
 	identityFilename := fmt.Sprintf(".%s.%s.key.age", fingerprint, trimmedVaultName)
 	scryptRecipient, err := age.NewScryptRecipient(passphrase)
@@ -157,12 +179,12 @@ func Unlock(vaultName string, trimmedVaultName string, getPassphrase func(identi
 	if err = crypt.DecryptToWriter(&identityBuffer, encryptedIdentity, scryptIdentity); err != nil {
 		return fmt.Errorf("bad passphrase: %s", err.Error())
 	}
-	identity, err := age.ParseX25519Identity(strings.TrimSpace(identityBuffer.String()))
+	identities, err := age.ParseIdentities(&identityBuffer)
 	if err != nil {
 		return fmt.Errorf("could not parse decrypted identity: %s", err.Error())
 	}
 	var tarBuffer bytes.Buffer
-	err = crypt.DecryptToWriter(&tarBuffer, encryptedVault, identity)
+	err = crypt.DecryptToWriter(&tarBuffer, encryptedVault, identities[0])
 	// NOTE: Close before shredding, Windows can't remove an open file
 	encryptedVault.Close()
 	if err != nil {
@@ -195,7 +217,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	if len(args) != 2 {
+	if len(args) < 2 {
 		Usage()
 	}
 
@@ -207,7 +229,8 @@ func main() {
 
 	badArgsError := errors.New("bad args")
 
-	if trimmedVaultName == "" {
+	postQuantum := len(args) == 3 && action == "keygen" && args[2] == "-pq"
+	if (len(args) != 2 && !postQuantum) || trimmedVaultName == "" {
 		errMsg(badArgsError)
 	}
 
@@ -216,7 +239,7 @@ func main() {
 		if err != nil {
 			errMsg(err)
 		}
-		identityFilename, fingerprint, err := Keygen(vaultName, trimmedVaultName, pw)
+		identityFilename, fingerprint, err := Keygen(vaultName, trimmedVaultName, pw, postQuantum)
 		if err != nil {
 			errMsg(err)
 		}

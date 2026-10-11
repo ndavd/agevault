@@ -12,7 +12,13 @@ import (
 
 const FileName = ".agevault-recipients"
 
-func Append(vaultName string, trimmedVaultName string, recipient *age.X25519Recipient) error {
+// NOTE: Both *age.X25519Recipient and *age.HybridRecipient satisfy this
+type Recipient interface {
+	age.Recipient
+	fmt.Stringer
+}
+
+func Append(vaultName string, trimmedVaultName string, recipient Recipient) error {
 	path := filepath.Join(vaultName, FileName)
 	exists, _ := utils.Exists(path)
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)

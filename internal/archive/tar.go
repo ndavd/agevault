@@ -95,11 +95,3 @@ func untarFile(r *tar.Reader, h *tar.Header, destination string, vaultName strin
 	}
 	return destinationFile.Close()
 }
-
-func IsTar(r io.Reader) bool {
-	h := make([]byte, 262)
-	if _, err := io.ReadFull(r, h); err != nil {
-		return false
-	}
-	return bytes.Equal(h[257:], []byte("ustar"))
-}
