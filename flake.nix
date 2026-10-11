@@ -29,7 +29,7 @@
           treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
           package = pkgs.buildGoModule {
             pname = "agevault";
-            version = "1.1.2";
+            version = "1.2.0";
             src = ./.;
             vendorHash = "sha256-yt4K+EcoZMJ36E5qolZdbDoeWp1WhVzppVx6nDrFq2s=";
           };

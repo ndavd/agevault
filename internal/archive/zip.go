@@ -10,6 +10,7 @@ import (
 	"strings"
 )
 
+// Deprecated: kept for backwards compatibility with v1.0.0. Use UnTar instead.
 func UnZip(inputReader bytes.Reader, outputDestination string, vaultName string) error {
 	reader, err := zip.NewReader(&inputReader, inputReader.Size())
 	if err != nil {
@@ -34,16 +35,17 @@ func unzipFile(f *zip.File, destination string, vaultName string) error {
 	if path != vaultDir && !strings.HasPrefix(path, vaultDir+string(os.PathSeparator)) {
 		return fmt.Errorf("invalid file path: %s", path)
 	}
+	// NOTE: v1.0.0 zips don't store file modes, so use private ones
 	if f.FileInfo().IsDir() {
-		if err := os.MkdirAll(path, os.ModePerm); err != nil {
+		if err := os.MkdirAll(path, 0o700); err != nil {
 			return err
 		}
 		return nil
 	}
-	if err := os.MkdirAll(filepath.Dir(path), os.ModePerm); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	destinationFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+	destinationFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
 	}

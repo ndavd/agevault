@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/ndavd/agevault/internal/recipients"
 )
 
 const (
@@ -43,12 +45,16 @@ func assertVaultUnlocked(t *testing.T) {
 	if string(got) != testFooContent {
 		t.Fatalf("%s content = %q, want %q", testFooName, got, testFooContent)
 	}
+	if _, err := recipients.Read(testVaultName); err != nil {
+		t.Fatalf("reading unlocked %s: %v", recipients.FileName, err)
+	}
 }
 
 func TestUnlockFixtures(t *testing.T) {
 	fixtures := map[string]string{
-		"v1.0.0-zip": "testdata/v1.0.0-zip-vault",
-		"current":    "testdata/current-vault",
+		"v1.0.0-zip":                "testdata/v1.0.0-zip-vault",
+		"v1.1.2-recipient-filename": "testdata/v1.1.2-recipient-filename-vault",
+		"current":                   "testdata/current-vault",
 	}
 	for name, dir := range fixtures {
 		t.Run(name, func(t *testing.T) {
@@ -76,6 +82,13 @@ func TestUnlockFixtures(t *testing.T) {
 			if err := Unlock(testVaultName, testVaultName, constPassphrase); err != nil {
 				t.Fatalf("Unlock() failed: %v", err)
 			}
+			// NOTE: Lock again so that older fixtures get migrated
+			if _, err := Lock(testVaultName, testVaultName); err != nil {
+				t.Fatalf("Lock() failed: %v", err)
+			}
+			if err := Unlock(testVaultName, testVaultName, constPassphrase); err != nil {
+				t.Fatalf("Unlock() failed: %v", err)
+			}
 
 			assertVaultUnlocked(t)
 		})
@@ -92,7 +105,7 @@ func TestLockUnlock(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := Keygen(testVaultName, testPassphrase); err != nil {
+	if _, _, err := Keygen(testVaultName, testVaultName, testPassphrase); err != nil {
 		t.Fatalf("Keygen() failed: %v", err)
 	}
 	if _, err := Lock(testVaultName, testVaultName); err != nil {
@@ -117,7 +130,7 @@ func TestLockRefusesHardLinks(t *testing.T) {
 	if err := os.Link("outside.txt", filepath.Join(testVaultName, testFooName)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Keygen(testVaultName, testPassphrase); err != nil {
+	if _, _, err := Keygen(testVaultName, testVaultName, testPassphrase); err != nil {
 		t.Fatal(err)
 	}
 

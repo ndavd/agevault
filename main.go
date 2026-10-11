@@ -5,17 +5,19 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"filippo.io/age"
 	"github.com/ndavd/agevault/internal/archive"
 	"github.com/ndavd/agevault/internal/crypt"
+	"github.com/ndavd/agevault/internal/recipients"
 	"github.com/ndavd/agevault/internal/shredder"
 	"github.com/ndavd/agevault/internal/utils"
 )
 
 func Version() string {
-	return "v1.1.2"
+	return "v1.2.0"
 }
 
 func Usage() {
@@ -44,52 +46,83 @@ func getIdentityFilename(trimmedVaultName string) (string, error) {
 	return identityFilename, nil
 }
 
-func Keygen(trimmedVaultName string, passphrase string) (string, error) {
-	identity, err := age.GenerateX25519Identity()
+// NOTE: Ensure backwards compatibility with versions before v1.2.0, where the recipient was in the identity filename
+func migrateLegacyRecipient(vaultName string, trimmedVaultName string) error {
+	missingErr := fmt.Errorf("missing %s, run keygen first", filepath.Join(vaultName, recipients.FileName))
+	identityFilename, err := getIdentityFilename(trimmedVaultName)
 	if err != nil {
-		return "", err
+		return missingErr
 	}
-	identityFilename := fmt.Sprintf(".%s.%s.key.age", identity.Recipient().String(), trimmedVaultName)
-	scryptRecipient, err := age.NewScryptRecipient(passphrase)
+	recipient, err := age.ParseX25519Recipient(strings.Split(identityFilename, ".")[1])
 	if err != nil {
-		return "", err
+		return missingErr
 	}
-	if err = crypt.EncryptToFile(identityFilename, []byte(identity.String()), scryptRecipient); err != nil {
-		return "", err
+	if err = recipients.Append(vaultName, trimmedVaultName, recipient); err != nil {
+		return fmt.Errorf("could not add recipient: %s", err.Error())
 	}
-	return identityFilename, nil
+	fmt.Printf("found deprecated recipient format, migrated to %s...\n", filepath.Join(vaultName, recipients.FileName))
+	return nil
 }
 
-func Lock(vaultName string, trimmedVaultName string) (string, error) {
+func Keygen(vaultName string, trimmedVaultName string, passphrase string) (string, string, error) {
+	encryptedExists, encryptedIsDir := utils.Exists(fmt.Sprintf("%s.age", vaultName))
+	if encryptedExists && !encryptedIsDir {
+		return "", "", errors.New("vault is locked, unlock it first")
+	}
+	if err := os.MkdirAll(vaultName, 0o700); err != nil {
+		return "", "", fmt.Errorf("could not create %s: %s", vaultName, err.Error())
+	}
+	identity, err := age.GenerateX25519Identity()
+	if err != nil {
+		return "", "", err
+	}
+	recipient := identity.Recipient()
+	fingerprint := crypt.Fingerprint(recipient)
+	identityFilename := fmt.Sprintf(".%s.%s.key.age", fingerprint, trimmedVaultName)
+	scryptRecipient, err := age.NewScryptRecipient(passphrase)
+	if err != nil {
+		return "", "", err
+	}
+	if err = crypt.EncryptToFile(identityFilename, []byte(identity.String()), scryptRecipient); err != nil {
+		return "", "", err
+	}
+	if err = recipients.Append(vaultName, trimmedVaultName, recipient); err != nil {
+		return "", "", fmt.Errorf("could not add recipient: %s", err.Error())
+	}
+	return identityFilename, fingerprint, nil
+}
+
+func Lock(vaultName string, trimmedVaultName string) ([]age.Recipient, error) {
 	encryptedFilename := fmt.Sprintf("%s.age", vaultName)
 	encryptedExists, encryptedIsDir := utils.Exists(encryptedFilename)
 	if encryptedExists && !encryptedIsDir {
-		return "", errors.New("already locked")
-	}
-	identityFilename, err := getIdentityFilename(trimmedVaultName)
-	if err != nil {
-		return "", err
-	}
-	recipientString := strings.Split(identityFilename, ".")[1]
-	recipient, err := age.ParseX25519Recipient(recipientString)
-	if err != nil {
-		return "", fmt.Errorf("could not read recipient: %s", err.Error())
+		return nil, errors.New("already locked")
 	}
 	vaultExists, vaultIsDir := utils.Exists(vaultName)
 	if !vaultExists || !vaultIsDir {
-		return "", fmt.Errorf("missing %s", vaultName)
+		return nil, fmt.Errorf("missing %s", vaultName)
+	}
+	recipientList, err := recipients.Read(vaultName)
+	if errors.Is(err, os.ErrNotExist) {
+		if err = migrateLegacyRecipient(vaultName, trimmedVaultName); err != nil {
+			return nil, err
+		}
+		recipientList, err = recipients.Read(vaultName)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("could not read recipients: %s", err.Error())
 	}
 	var tarBuffer bytes.Buffer
 	if err = archive.TarDirectory(vaultName, &tarBuffer); err != nil {
-		return "", fmt.Errorf("could not tar: %s", err.Error())
+		return nil, fmt.Errorf("could not tar: %s", err.Error())
 	}
-	if err = crypt.EncryptToFile(encryptedFilename, tarBuffer.Bytes(), recipient); err != nil {
-		return "", fmt.Errorf("could not encrypt: %s", err.Error())
+	if err = crypt.EncryptToFile(encryptedFilename, tarBuffer.Bytes(), recipientList...); err != nil {
+		return nil, fmt.Errorf("could not encrypt: %s", err.Error())
 	}
 	if err = shredder.ShredDir(vaultName, 3); err != nil {
-		return "", fmt.Errorf("could not shred %s: %s", vaultName, err.Error())
+		return nil, fmt.Errorf("could not shred %s: %s", vaultName, err.Error())
 	}
-	return recipientString, nil
+	return recipientList, nil
 }
 
 func Unlock(vaultName string, trimmedVaultName string, getPassphrase func(identityFilename string) (string, error)) error {
@@ -106,10 +139,12 @@ func Unlock(vaultName string, trimmedVaultName string, getPassphrase func(identi
 	if err != nil {
 		return fmt.Errorf("missing encrypted %s: %s", vaultName, err.Error())
 	}
+	defer encryptedVault.Close()
 	encryptedIdentity, err := os.Open(identityFilename)
 	if err != nil {
 		return fmt.Errorf("could not read identity file: %s", err.Error())
 	}
+	defer encryptedIdentity.Close()
 	passphrase, err := getPassphrase(identityFilename)
 	if err != nil {
 		return err
@@ -122,12 +157,14 @@ func Unlock(vaultName string, trimmedVaultName string, getPassphrase func(identi
 	if err = crypt.DecryptToWriter(&identityBuffer, encryptedIdentity, scryptIdentity); err != nil {
 		return fmt.Errorf("bad passphrase: %s", err.Error())
 	}
-	identity, err := age.ParseIdentities(&identityBuffer)
-	if err != nil || len(identity) != 1 {
+	identity, err := age.ParseX25519Identity(strings.TrimSpace(identityBuffer.String()))
+	if err != nil {
 		return fmt.Errorf("could not parse decrypted identity: %s", err.Error())
 	}
 	var tarBuffer bytes.Buffer
-	err = crypt.DecryptToWriter(&tarBuffer, encryptedVault, identity[0])
+	err = crypt.DecryptToWriter(&tarBuffer, encryptedVault, identity)
+	// NOTE: Close before shredding, Windows can't remove an open file
+	encryptedVault.Close()
 	if err != nil {
 		return fmt.Errorf("could not decrypt %s: %s", vaultName, err.Error())
 	}
@@ -163,34 +200,44 @@ func main() {
 	}
 
 	action := args[1]
-	vaultName := args[0]
+	vaultName := filepath.Clean(args[0])
 
 	// NOTE: Useful for supporting dot-directories
 	trimmedVaultName := strings.Trim(vaultName, ". ")
 
-	if trimmedVaultName != "" && action == "keygen" {
+	badArgsError := errors.New("bad args")
+
+	if trimmedVaultName == "" {
+		errMsg(badArgsError)
+	}
+
+	if action == "keygen" {
 		pw, err := crypt.ReadSecret("identity passphrase", true)
 		if err != nil {
 			errMsg(err)
 		}
-		identityFilename, err := Keygen(trimmedVaultName, pw)
+		identityFilename, fingerprint, err := Keygen(vaultName, trimmedVaultName, pw)
 		if err != nil {
 			errMsg(err)
 		}
-		fmt.Printf("%s CREATED (do not change the filename)\n", identityFilename)
+		fmt.Printf("%s CREATED\n", identityFilename)
+		fmt.Printf("%s ADDED to %s\n", fingerprint, filepath.Join(vaultName, recipients.FileName))
 		return
 	}
 
-	if trimmedVaultName != "" && action == "lock" {
-		recipientString, err := Lock(vaultName, trimmedVaultName)
+	if action == "lock" {
+		recipientList, err := Lock(vaultName, trimmedVaultName)
 		if err != nil {
 			errMsg(err)
 		}
-		fmt.Printf("%s LOCKED with %s\n", vaultName, recipientString)
+		fmt.Printf("%s LOCKED with:\n", vaultName)
+		for _, recipient := range recipientList {
+			fmt.Printf("  %s\n", crypt.Fingerprint(recipient.(fmt.Stringer)))
+		}
 		return
 	}
 
-	if trimmedVaultName != "" && action == "unlock" {
+	if action == "unlock" {
 		err := Unlock(vaultName, trimmedVaultName, func(identityFilename string) (string, error) {
 			return crypt.ReadSecret(
 				fmt.Sprintf("enter passphrase for identity file \"%s\"", identityFilename),
@@ -204,5 +251,5 @@ func main() {
 		return
 	}
 
-	errMsg(errors.New("bad args"))
+	errMsg(badArgsError)
 }
