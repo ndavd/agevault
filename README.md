@@ -49,14 +49,14 @@ docker run --rm -it -u ${UID}:${GID} -v .:/tmp agevault
 
 ```text
 lock/unlock directory with passphrase-protected identity file
-usage: agevault [directory-name] lock|unlock|keygen
+usage: agevault [directory-name] lock|unlock|keygen [-pq]
 ```
 
 Assuming we want to secure the directory `my-vault/`:
 
 1. Generate identity file
 
-   ```text
+   ```console
    $ agevault my-vault keygen
    create identity passphrase: 
    confirm identity passphrase: 
@@ -66,7 +66,7 @@ Assuming we want to secure the directory `my-vault/`:
 
 2. Lock vault
 
-   ```text
+   ```console
    $ agevault my-vault lock
    my-vault LOCKED with:
      ab2a0883204b8bb5a463fe79ecde7674
@@ -74,7 +74,7 @@ Assuming we want to secure the directory `my-vault/`:
 
 3. Unlock vault
 
-   ```text
+   ```console
    $ agevault my-vault unlock
    enter passphrase for identity file ".ab2a0883204b8bb5a463fe79ecde7674.my-vault.key.age": 
    my-vault UNLOCKED
@@ -96,13 +96,22 @@ its recipient automatically, and the file is locked together with the rest of th
 age14p8nysmdqmlhgczshculs35kt2y8rrsx9jd9mc0rglg90rr504xsh3qzty
 ```
 
-To share a vault, the other person runs `agevault <vault> keygen` and sends you the recipient and
-fingerprint from their `<vault>/.agevault-recipients`. Paste the recipient into yours and lock, then
-send them `<vault>.age`. They need to remove the empty `<vault>/` created by their `keygen` before
-unlocking.
+To share a vault, the other person runs `agevault <vault> keygen` (add `-pq` for post-quantum
+vaults) and sends you the recipient and fingerprint from their `<vault>/.agevault-recipients`. Paste
+the recipient into yours and lock, then send them `<vault>.age`. They need to remove the empty
+`<vault>/` created by their `keygen` before unlocking.
 
 Every recipient's fingerprint is printed on lock. Check that each one is yours or matches a
 fingerprint someone sent you.
+
+### Post-quantum keys
+
+`keygen -pq` generates a post-quantum identity (ML-KEM-768 + X25519) instead of an X25519 one. Its
+recipient starts with `age1pq1` and is much longer.
+
+`age` can't encrypt to post-quantum and X25519 recipients at the same time, so every recipient of a
+vault must be the same kind. `keygen` refuses to add a recipient that doesn't match the existing
+ones, so everyone sharing a post-quantum vault must use `keygen -pq`.
 
 ### Upgrading from versions before v1.2.0
 

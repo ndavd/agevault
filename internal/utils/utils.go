@@ -1,22 +1,8 @@
 package utils
 
 import (
-	"bytes"
-	"errors"
 	"os"
-	"os/exec"
 )
-
-func RunCmd(name string, args ...string) error {
-	cmd := exec.Command(name, args...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	if err != nil {
-		return errors.New(stderr.String())
-	}
-	return nil
-}
 
 func Exists(path string) (exists bool, isDir bool) {
 	info, err := os.Stat(path)

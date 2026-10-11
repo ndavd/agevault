@@ -96,26 +96,45 @@ func TestUnlockFixtures(t *testing.T) {
 }
 
 func TestLockUnlock(t *testing.T) {
-	runInIsolatedDir(t)
+	for name, postQuantum := range map[string]bool{"x25519": false, "post-quantum": true} {
+		t.Run(name, func(t *testing.T) {
+			runInIsolatedDir(t)
 
-	if err := os.Mkdir(testVaultName, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(testVaultName, testFooName), []byte(testFooContent), 0o644); err != nil {
-		t.Fatal(err)
-	}
+			if err := os.Mkdir(testVaultName, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(testVaultName, testFooName), []byte(testFooContent), 0o644); err != nil {
+				t.Fatal(err)
+			}
 
-	if _, _, err := Keygen(testVaultName, testVaultName, testPassphrase); err != nil {
-		t.Fatalf("Keygen() failed: %v", err)
-	}
-	if _, err := Lock(testVaultName, testVaultName); err != nil {
-		t.Fatalf("Lock() failed: %v", err)
-	}
-	if err := Unlock(testVaultName, testVaultName, constPassphrase); err != nil {
-		t.Fatalf("Unlock() failed: %v", err)
-	}
+			if _, _, err := Keygen(testVaultName, testVaultName, testPassphrase, postQuantum); err != nil {
+				t.Fatalf("Keygen() failed: %v", err)
+			}
+			if _, err := Lock(testVaultName, testVaultName); err != nil {
+				t.Fatalf("Lock() failed: %v", err)
+			}
+			if err := Unlock(testVaultName, testVaultName, constPassphrase); err != nil {
+				t.Fatalf("Unlock() failed: %v", err)
+			}
 
-	assertVaultUnlocked(t)
+			assertVaultUnlocked(t)
+		})
+	}
+}
+
+func TestKeygenRefusesMixedRecipients(t *testing.T) {
+	for name, postQuantum := range map[string]bool{"x25519-then-post-quantum": false, "post-quantum-then-x25519": true} {
+		t.Run(name, func(t *testing.T) {
+			runInIsolatedDir(t)
+
+			if _, _, err := Keygen(testVaultName, testVaultName, testPassphrase, postQuantum); err != nil {
+				t.Fatalf("Keygen() failed: %v", err)
+			}
+			if _, _, err := Keygen(testVaultName, testVaultName, testPassphrase, !postQuantum); err == nil {
+				t.Fatal("Keygen() succeeded, want mixed recipients error")
+			}
+		})
+	}
 }
 
 func TestLockRefusesHardLinks(t *testing.T) {
@@ -130,7 +149,7 @@ func TestLockRefusesHardLinks(t *testing.T) {
 	if err := os.Link("outside.txt", filepath.Join(testVaultName, testFooName)); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := Keygen(testVaultName, testVaultName, testPassphrase); err != nil {
+	if _, _, err := Keygen(testVaultName, testVaultName, testPassphrase, false); err != nil {
 		t.Fatal(err)
 	}
 
