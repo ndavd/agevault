@@ -77,9 +77,9 @@ func untarFile(r *tar.Reader, h *tar.Header, destination string, vaultName strin
 		return fmt.Errorf("invalid file path: %s", path)
 	}
 	if h.FileInfo().IsDir() {
-		return os.MkdirAll(path, os.ModePerm)
+		return os.MkdirAll(path, 0o700)
 	}
-	if err := os.MkdirAll(filepath.Dir(path), os.ModePerm); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
 	destinationFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, h.FileInfo().Mode())

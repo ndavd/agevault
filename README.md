@@ -29,20 +29,20 @@ Get them from the [latest release](https://github.com/ndavd/agevault/releases/la
 ### Using `nix`
 
 ```text
-$ nix run github:ndavd/agevault
+nix run github:ndavd/agevault
 ```
 
 ### Using `go`
 
 ```text
-$ go install github.com/ndavd/agevault@latest
+go install github.com/ndavd/agevault@latest
 ```
 
 ### Using `docker`
 
 ```text
-$ docker build -t agevault .
-$ docker run --rm -it -u ${UID}:${GID} -v .:/tmp agevault
+docker build -t agevault .
+docker run --rm -it -u ${UID}:${GID} -v .:/tmp agevault
 ```
 
 ## Usage
@@ -52,50 +52,79 @@ lock/unlock directory with passphrase-protected identity file
 usage: agevault [directory-name] lock|unlock|keygen
 ```
 
-Securing `my-vault/`:
+Assuming we want to secure the directory `my-vault/`:
 
 1. Generate identity file
 
-```text
-$ agevault my-vault keygen
-create identity passphrase: 
-confirm identity passphrase: 
-.age14tpkpl6vexufah8eq5dgrd5zy4xqs4slynh26j5n7gvxs87xhguqwu9zqc.my-vault.key.age CREATED (do not change the filename)
-```
+   ```text
+   $ agevault my-vault keygen
+   create identity passphrase: 
+   confirm identity passphrase: 
+   .ab2a0883204b8bb5a463fe79ecde7674.my-vault.key.age CREATED
+   ab2a0883204b8bb5a463fe79ecde7674 ADDED to my-vault/.agevault-recipients
+   ```
 
 2. Lock vault
 
-```text
-$ agevault my-vault lock
-my-vault LOCKED with age14tpkpl6vexufah8eq5dgrd5zy4xqs4slynh26j5n7gvxs87xhguqwu9zqc
-```
+   ```text
+   $ agevault my-vault lock
+   my-vault LOCKED with:
+     ab2a0883204b8bb5a463fe79ecde7674
+   ```
 
 3. Unlock vault
 
-```text
-$ agevault my-vault unlock
-enter passphrase for identity file ".age14tpkpl6vexufah8eq5dgrd5zy4xqs4slynh26j5n7gvxs87xhguqwu9zqc.my-vault.key.age": 
-my-vault UNLOCKED
-```
+   ```text
+   $ agevault my-vault unlock
+   enter passphrase for identity file ".ab2a0883204b8bb5a463fe79ecde7674.my-vault.key.age": 
+   my-vault UNLOCKED
+   ```
 
 4. That's it. Do your changes, lock it again, etc.
+
+### Recipients
+
+The vault is encrypted to every recipient listed in `my-vault/.agevault-recipients`. `keygen` adds
+its recipient automatically, and the file is locked together with the rest of the vault.
+
+```text
+# agevault recipients for my-vault
+# lines starting with # are ignored
+
+# fingerprint: ab2a0883204b8bb5a463fe79ecde7674
+age14p8nysmdqmlhgczshculs35kt2y8rrsx9jd9mc0rglg90rr504xsh3qzty
+```
+
+To share a vault, the other person runs `agevault my-vault keygen` and sends you the recipient and
+fingerprint from their `my-vault/.agevault-recipients`. Paste the recipient into yours and lock,
+then send them `my-vault.age`. They need to remove the empty `my-vault/` created by their `keygen`
+before unlocking.
+
+Every recipient's fingerprint is printed on lock. Check that each one is yours or matches a
+fingerprint someone sent you.
+
+### Upgrading from versions before v1.2.0
+
+Previously, the recipient was stored in the identity filename. Vaults created with older versions
+are migrated automatically: the first `lock` creates `.agevault-recipients` from the existing
+identity file. Once it's migrated, the identity file can be renamed, as long as it keeps the
+`.my-vault.key.age` ending.
 
 ## Design
 
 `agevault` relies entirely on `age` for the cryptography involved, inheriting its security. It
 provides the minimal infrastructure required for `age` to work as a directory encryption tool.
 
-`agevault` uses a passphrase encrypted identity for a few key reasons:
+`agevault` uses a passphrase-encrypted identity for a few key reasons:
 
 - Extra security factor: Having the encrypted identity file or the passphrase by itself is useless.
 - Easier to lock: If only symmetric encryption was used, the user would need the passphrase to lock
   as well; this way, the vault can be locked without entering the passphrase.
-- Ability to support multiple keys in the future ([planned features](#planned-features)): This makes
-  it possible to support multiple passphrases, each corresponding to its own key, so multiple people
-  could _own_ the vault: any one of them can lock it, and any one of them can unlock it with their
-  own passphrase.
+- Multiple keys ([recipients](#recipients)): Each passphrase corresponds to its own key, so multiple
+  people can _own_ the vault: any one of them can lock it, and any one of them can unlock it with
+  their own passphrase.
 
 ## Planned features
 
 - [ ] Post-quantum keys
-- [ ] Multi-user vault support
+- [x] Multi-user vault support

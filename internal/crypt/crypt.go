@@ -1,6 +1,8 @@
 package crypt
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -11,13 +13,13 @@ import (
 	"golang.org/x/term"
 )
 
-func EncryptToFile(destinationFilename string, data []byte, recipient age.Recipient) error {
-	file, err := os.Create(destinationFilename)
+func EncryptToFile(destinationFilename string, data []byte, recipients ...age.Recipient) error {
+	file, err := os.OpenFile(destinationFilename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-	writeCloser, err := age.Encrypt(file, recipient)
+	writeCloser, err := age.Encrypt(file, recipients...)
 	if err != nil {
 		return err
 	}
@@ -68,4 +70,9 @@ func ReadSecret(label string, confirm bool) (string, error) {
 		}
 	}
 	return string(secretBytes), nil
+}
+
+func Fingerprint(recipient fmt.Stringer) string {
+	sum := sha256.Sum256([]byte(recipient.String()))
+	return hex.EncodeToString(sum[:16])
 }
