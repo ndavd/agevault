@@ -1,0 +1,119 @@
+.\" generated with Ronn-NG/v0.9.1
+.\" http://github.com/apjanke/ronn-ng/tree/0.9.1
+.TH "AGEVAULT" "1" "October 2026" ""
+.SH "NAME"
+\fBagevault\fR \- directory encryption tool using age file encryption
+.SH "SYNOPSIS"
+\fBagevault\fR \fIdirectory\fR \fBkeygen\fR [\fB\-pq\fR]
+.br
+\fBagevault\fR \fIdirectory\fR \fBlock\fR
+.br
+\fBagevault\fR \fIdirectory\fR \fBunlock\fR
+.br
+\fBagevault\fR \fB\-\-version\fR
+.SH "DESCRIPTION"
+\fBagevault\fR is a directory encryption tool using age(1) file encryption\.
+.P
+It locks/unlocks a vault (\fIdirectory\fR) with a passphrase\-protected identity file\.
+.P
+Like age(1), it features no config options, allowing for a straightforward secure flow\.
+.P
+\fBagevault\fR relies entirely on \fBage\fR for the cryptography involved, inheriting its security\. It provides the minimal infrastructure required for \fBage\fR to work as a directory encryption tool\.
+.P
+Locking archives \fIdirectory\fR, encrypts it to \fIdirectory\fR\fB\.age\fR and shreds \fIdirectory\fR\. Unlocking decrypts \fIdirectory\fR\fB\.age\fR with the identity file, restores \fIdirectory\fR and shreds \fIdirectory\fR\fB\.age\fR\.
+.P
+The identity file is named \fB\.\fR\fIfingerprint\fR\fB\.\fR\fIdirectory\fR\fB\.key\.age\fR and lives in the current working directory, next to the vault\. It's encrypted with a passphrase for a few key reasons:
+.TP
+Extra security factor
+Having the encrypted identity file or the passphrase by itself is useless\.
+.TP
+Easier to lock
+If only symmetric encryption was used, the user would need the passphrase to lock as well; this way, the vault can be locked without entering the passphrase\.
+.TP
+Multiple keys (recipients)
+Each passphrase corresponds to its own key, so multiple people can \fIown\fR the vault: any one of them can lock it, and any one of them can unlock it with their own passphrase\.
+.SS "Recipients"
+The vault is encrypted to every recipient listed in \fIdirectory\fR\fB/\.agevault\-recipients\fR\. \fBkeygen\fR adds its recipient automatically, and the file is locked together with the rest of the vault\. For \fBmy\-vault\fR, it looks like this:
+.IP "" 4
+.nf
+# agevault recipients for my\-vault
+# lines starting with # are ignored
+
+# fingerprint: ab2a0883204b8bb5a463fe79ecde7674
+age14p8nysmdqmlhgczshculs35kt2y8rrsx9jd9mc0rglg90rr504xsh3qzty
+.fi
+.IP "" 0
+.P
+Every recipient's fingerprint is printed on lock\. Check that each one is yours or matches a fingerprint someone sent you\.
+.SS "Post\-quantum keys"
+\fBkeygen \-pq\fR generates a post\-quantum identity (ML\-KEM\-768 + X25519) instead of an X25519 one\. Its recipient starts with \fBage1pq1\fR and is much longer\.
+.P
+\fBage\fR can't encrypt to post\-quantum and X25519 recipients at the same time, so every recipient of a vault must be the same kind\. \fBkeygen\fR refuses to add a recipient that doesn't match the existing ones, so everyone sharing a post\-quantum vault must use \fBkeygen \-pq\fR\.
+.SH "OPTIONS"
+.TP
+\fBkeygen\fR
+Generate a new identity, encrypt it with a passphrase into \fB\.\fR\fIfingerprint\fR\fB\.\fR\fIdirectory\fR\fB\.key\.age\fR and add its recipient to \fIdirectory\fR\fB/\.agevault\-recipients\fR\. Creates \fIdirectory\fR if it doesn't exist\. The vault must be unlocked\.
+.TP
+\fB\-pq\fR
+Only valid with \fBkeygen\fR\. Generate a post\-quantum identity instead of an X25519 one\. See \fIPost\-quantum keys\fR\.
+.TP
+\fBlock\fR
+Encrypt \fIdirectory\fR to every recipient in \fIdirectory\fR\fB/\.agevault\-recipients\fR and print their fingerprints\. No passphrase is required\.
+.TP
+\fBunlock\fR
+Prompt for the identity file passphrase and decrypt \fIdirectory\fR\fB\.age\fR back into \fIdirectory\fR\.
+.TP
+\fB\-\-version\fR
+Print the version and exit\.
+.P
+Running \fBagevault\fR without a command prints the usage\.
+.SH "BACKWARDS COMPATIBILITY"
+Always install the latest release to make sure you have the latest security improvements and fixes\. If the update has the same major version (e\.g\. \fBv1\.x\.x\fR), then it's guaranteed to be backwards compatible\.
+.P
+Before v1\.2\.0, the recipient was stored in the identity filename\. Vaults created with older versions are migrated automatically: the first \fBlock\fR creates \fB\.agevault\-recipients\fR from the existing identity file\. Once it's migrated, the identity file can be renamed, as long as it keeps the \fB\.\fR\fIdirectory\fR\fB\.key\.age\fR ending\.
+.P
+Vaults locked with v1\.0\.0 were archived with zip instead of tar\. They are still unlocked transparently, and the next \fBlock\fR uses the current format\.
+.SH "EXAMPLES"
+Assuming we want to secure the directory \fBmy\-vault/\fR\.
+.P
+Generate identity file:
+.IP "" 4
+.nf
+$ agevault my\-vault keygen
+create identity passphrase:
+confirm identity passphrase:
+\&\.ab2a0883204b8bb5a463fe79ecde7674\.my\-vault\.key\.age CREATED
+ab2a0883204b8bb5a463fe79ecde7674 ADDED to my\-vault/\.agevault\-recipients
+.fi
+.IP "" 0
+.P
+Lock vault:
+.IP "" 4
+.nf
+$ agevault my\-vault lock
+my\-vault LOCKED with:
+  ab2a0883204b8bb5a463fe79ecde7674
+.fi
+.IP "" 0
+.P
+Unlock vault:
+.IP "" 4
+.nf
+$ agevault my\-vault unlock
+enter passphrase for identity file "\.ab2a0883204b8bb5a463fe79ecde7674\.my\-vault\.key\.age":
+my\-vault UNLOCKED
+.fi
+.IP "" 0
+.P
+That's it\. Do your changes, lock it again, etc\.
+.P
+Generate a post\-quantum identity file:
+.IP "" 4
+.nf
+$ agevault my\-vault keygen \-pq
+.fi
+.IP "" 0
+.P
+To share a vault, the other person runs \fBagevault my\-vault keygen\fR (add \fB\-pq\fR for post\-quantum vaults) and sends you the recipient and fingerprint from their \fBmy\-vault/\.agevault\-recipients\fR\. Paste the recipient into yours and lock, then send them \fBmy\-vault\.age\fR\. They need to remove the empty \fBmy\-vault/\fR created by their \fBkeygen\fR before unlocking\.
+.SH "SEE ALSO"
+age(1)

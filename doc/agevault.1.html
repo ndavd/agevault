@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv='content-type' content='text/html;charset=utf8'>
+  <meta name='generator' content='Ronn-NG/v0.9.1 (http://github.com/apjanke/ronn-ng/tree/0.9.1)'>
+  <title>agevault(1) - directory encryption tool using age file encryption</title>
+  <style type='text/css' media='all'>
+  /* style: man */
+  body#manpage {margin:0}
+  .mp {max-width:100ex;padding:0 9ex 1ex 4ex}
+  .mp p,.mp pre,.mp ul,.mp ol,.mp dl {margin:0 0 20px 0}
+  .mp h2 {margin:10px 0 0 0}
+  .mp > p,.mp > pre,.mp > ul,.mp > ol,.mp > dl {margin-left:8ex}
+  .mp h3 {margin:0 0 0 4ex}
+  .mp dt {margin:0;clear:left}
+  .mp dt.flush {float:left;width:8ex}
+  .mp dd {margin:0 0 0 9ex}
+  .mp h1,.mp h2,.mp h3,.mp h4 {clear:left}
+  .mp pre {margin-bottom:20px}
+  .mp pre+h2,.mp pre+h3 {margin-top:22px}
+  .mp h2+pre,.mp h3+pre {margin-top:5px}
+  .mp img {display:block;margin:auto}
+  .mp h1.man-title {display:none}
+  .mp,.mp code,.mp pre,.mp tt,.mp kbd,.mp samp,.mp h3,.mp h4 {font-family:monospace;font-size:14px;line-height:1.42857142857143}
+  .mp h2 {font-size:16px;line-height:1.25}
+  .mp h1 {font-size:20px;line-height:2}
+  .mp {text-align:justify;background:#fff}
+  .mp,.mp code,.mp pre,.mp pre code,.mp tt,.mp kbd,.mp samp {color:#131211}
+  .mp h1,.mp h2,.mp h3,.mp h4 {color:#030201}
+  .mp u {text-decoration:underline}
+  .mp code,.mp strong,.mp b {font-weight:bold;color:#131211}
+  .mp em,.mp var {font-style:italic;color:#232221;text-decoration:none}
+  .mp a,.mp a:link,.mp a:hover,.mp a code,.mp a pre,.mp a tt,.mp a kbd,.mp a samp {color:#0000ff}
+  .mp b.man-ref {font-weight:normal;color:#434241}
+  .mp pre {padding:0 4ex}
+  .mp pre code {font-weight:normal;color:#434241}
+  .mp h2+pre,h3+pre {padding-left:0}
+  ol.man-decor,ol.man-decor li {margin:3px 0 10px 0;padding:0;float:left;width:33%;list-style-type:none;text-transform:uppercase;color:#999;letter-spacing:1px}
+  ol.man-decor {width:100%}
+  ol.man-decor li.tl {text-align:left}
+  ol.man-decor li.tc {text-align:center;letter-spacing:4px}
+  ol.man-decor li.tr {text-align:right;float:right}
+  </style>
+</head>
+<!--
+  The following styles are deprecated and will be removed at some point:
+  div#man, div#man ol.man, div#man ol.head, div#man ol.man.
+
+  The .man-page, .man-decor, .man-head, .man-foot, .man-title, and
+  .man-navigation should be used instead.
+-->
+<body id='manpage'>
+  <div class='mp' id='man'>
+
+  <div class='man-navigation' style='display:none'>
+    <a href="#NAME">NAME</a>
+    <a href="#SYNOPSIS">SYNOPSIS</a>
+    <a href="#DESCRIPTION">DESCRIPTION</a>
+    <a href="#OPTIONS">OPTIONS</a>
+    <a href="#BACKWARDS-COMPATIBILITY">BACKWARDS COMPATIBILITY</a>
+    <a href="#EXAMPLES">EXAMPLES</a>
+    <a href="#SEE-ALSO">SEE ALSO</a>
+  </div>
+
+  <ol class='man-decor man-head man head'>
+    <li class='tl'>agevault(1)</li>
+    <li class='tc'></li>
+    <li class='tr'>agevault(1)</li>
+  </ol>
+
+  
+
+<h2 id="NAME">NAME</h2>
+<p class="man-name">
+  <code>agevault</code> - <span class="man-whatis">directory encryption tool using age file encryption</span>
+</p>
+<h2 id="SYNOPSIS">SYNOPSIS</h2>
+
+<p><code>agevault</code> <var>directory</var> <code>keygen</code> [<code>-pq</code>]<br>
+<code>agevault</code> <var>directory</var> <code>lock</code><br>
+<code>agevault</code> <var>directory</var> <code>unlock</code><br>
+<code>agevault</code> <code>--version</code></p>
+
+<h2 id="DESCRIPTION">DESCRIPTION</h2>
+
+<p><code>agevault</code> is a directory encryption tool using <span class="man-ref">age<span class="s">(1)</span></span> file encryption.</p>
+
+<p>It locks/unlocks a vault (<var>directory</var>) with a passphrase-protected identity file.</p>
+
+<p>Like <span class="man-ref">age<span class="s">(1)</span></span>, it features no config options, allowing for a straightforward secure flow.</p>
+
+<p><code>agevault</code> relies entirely on <code>age</code> for the cryptography involved, inheriting its security. It provides the minimal infrastructure required for <code>age</code> to work as a directory encryption tool.</p>
+
+<p>Locking archives <var>directory</var>, encrypts it to <var>directory</var><code>.age</code> and shreds <var>directory</var>. Unlocking decrypts <var>directory</var><code>.age</code> with the identity file, restores <var>directory</var> and shreds <var>directory</var><code>.age</code>.</p>
+
+<p>The identity file is named <code>.</code><var>fingerprint</var><code>.</code><var>directory</var><code>.key.age</code> and lives in the current working directory, next to the vault. It's encrypted with a passphrase for a few key reasons:</p>
+
+<dl>
+<dt>Extra security factor</dt>
+<dd>Having the encrypted identity file or the passphrase by itself is useless.</dd>
+<dt>Easier to lock</dt>
+<dd>If only symmetric encryption was used, the user would need the passphrase to lock as well; this
+way, the vault can be locked without entering the passphrase.</dd>
+<dt>Multiple keys (recipients)</dt>
+<dd>Each passphrase corresponds to its own key, so multiple people can <em>own</em> the vault: any one of
+them can lock it, and any one of them can unlock it with their own passphrase.</dd>
+</dl>
+
+<h3 id="Recipients">Recipients</h3>
+
+<p>The vault is encrypted to every recipient listed in <var>directory</var><code>/.agevault-recipients</code>. <code>keygen</code> adds its recipient automatically, and the file is locked together with the rest of the vault. For <code>my-vault</code>, it looks like this:</p>
+
+<pre><code># agevault recipients for my-vault
+# lines starting with # are ignored
+
+# fingerprint: ab2a0883204b8bb5a463fe79ecde7674
+age14p8nysmdqmlhgczshculs35kt2y8rrsx9jd9mc0rglg90rr504xsh3qzty
+</code></pre>
+
+<p>Every recipient's fingerprint is printed on lock. Check that each one is yours or matches a fingerprint someone sent you.</p>
+
+<h3 id="Post-quantum-keys">Post-quantum keys</h3>
+
+<p><code>keygen -pq</code> generates a post-quantum identity (ML-KEM-768 + X25519) instead of an X25519 one. Its recipient starts with <code>age1pq1</code> and is much longer.</p>
+
+<p><code>age</code> can't encrypt to post-quantum and X25519 recipients at the same time, so every recipient of a vault must be the same kind. <code>keygen</code> refuses to add a recipient that doesn't match the existing ones, so everyone sharing a post-quantum vault must use <code>keygen -pq</code>.</p>
+
+<h2 id="OPTIONS">OPTIONS</h2>
+
+<dl>
+<dt><code>keygen</code></dt>
+<dd>Generate a new identity, encrypt it with a passphrase into <code>.</code><var>fingerprint</var><code>.</code><var>directory</var><code>.key.age</code> and add its recipient to <var>directory</var><code>/.agevault-recipients</code>. Creates <var>directory</var> if it doesn't exist. The vault must be unlocked.</dd>
+<dt><code>-pq</code></dt>
+<dd>Only valid with <code>keygen</code>. Generate a post-quantum identity instead of an X25519 one. See <a href="#Post-quantum-keys" title="Post-quantum keys" data-bare-link="true">Post-quantum keys</a>.</dd>
+<dt><code>lock</code></dt>
+<dd>Encrypt <var>directory</var> to every recipient in <var>directory</var><code>/.agevault-recipients</code> and print their fingerprints. No passphrase is required.</dd>
+<dt><code>unlock</code></dt>
+<dd>Prompt for the identity file passphrase and decrypt <var>directory</var><code>.age</code> back into <var>directory</var>.</dd>
+<dt><code>--version</code></dt>
+<dd>Print the version and exit.</dd>
+</dl>
+
+<p>Running <code>agevault</code> without a command prints the usage.</p>
+
+<h2 id="BACKWARDS-COMPATIBILITY">BACKWARDS COMPATIBILITY</h2>
+
+<p>Always install the latest release to make sure you have the latest security improvements and fixes. If the update has the same major version (e.g. <code>v1.x.x</code>), then it's guaranteed to be backwards compatible.</p>
+
+<p>Before v1.2.0, the recipient was stored in the identity filename. Vaults created with older versions are migrated automatically: the first <code>lock</code> creates <code>.agevault-recipients</code> from the existing identity file. Once it's migrated, the identity file can be renamed, as long as it keeps the <code>.</code><var>directory</var><code>.key.age</code> ending.</p>
+
+<p>Vaults locked with v1.0.0 were archived with zip instead of tar. They are still unlocked transparently, and the next <code>lock</code> uses the current format.</p>
+
+<h2 id="EXAMPLES">EXAMPLES</h2>
+
+<p>Assuming we want to secure the directory <code>my-vault/</code>.</p>
+
+<p>Generate identity file:</p>
+
+<pre><code>$ agevault my-vault keygen
+create identity passphrase:
+confirm identity passphrase:
+.ab2a0883204b8bb5a463fe79ecde7674.my-vault.key.age CREATED
+ab2a0883204b8bb5a463fe79ecde7674 ADDED to my-vault/.agevault-recipients
+</code></pre>
+
+<p>Lock vault:</p>
+
+<pre><code>$ agevault my-vault lock
+my-vault LOCKED with:
+  ab2a0883204b8bb5a463fe79ecde7674
+</code></pre>
+
+<p>Unlock vault:</p>
+
+<pre><code>$ agevault my-vault unlock
+enter passphrase for identity file ".ab2a0883204b8bb5a463fe79ecde7674.my-vault.key.age":
+my-vault UNLOCKED
+</code></pre>
+
+<p>That's it. Do your changes, lock it again, etc.</p>
+
+<p>Generate a post-quantum identity file:</p>
+
+<pre><code>$ agevault my-vault keygen -pq
+</code></pre>
+
+<p>To share a vault, the other person runs <code>agevault my-vault keygen</code> (add <code>-pq</code> for post-quantum vaults) and sends you the recipient and fingerprint from their <code>my-vault/.agevault-recipients</code>. Paste the recipient into yours and lock, then send them <code>my-vault.age</code>. They need to remove the empty <code>my-vault/</code> created by their <code>keygen</code> before unlocking.</p>
+
+<h2 id="SEE-ALSO">SEE ALSO</h2>
+
+<p><span class="man-ref">age<span class="s">(1)</span></span></p>
+
+  <ol class='man-decor man-foot man foot'>
+    <li class='tl'></li>
+    <li class='tc'>October 2026</li>
+    <li class='tr'>agevault(1)</li>
+  </ol>
+
+  </div>
+</body>
+</html>
