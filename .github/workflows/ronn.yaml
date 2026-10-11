@@ -1,0 +1,26 @@
+name: Generate man pages
+on:
+  push:
+    branches:
+      - '**'
+    paths:
+      - '**.ronn'
+      - '**/ronn.yaml'
+permissions:
+  contents: write
+jobs:
+  ronn:
+    name: Ronn
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v7
+      - name: Generate man pages
+        run: |
+          sudo apt-get update && sudo apt-get install -y ronn
+          ronn doc/*.ronn
+      - name: Commit
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: "docs: generate man pages"
+          file_pattern: doc/

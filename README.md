@@ -47,6 +47,9 @@ docker run --rm -it -u ${UID}:${GID} -v .:/tmp agevault
 
 ## Usage
 
+For the full documentation, read the
+[agevault(1) man page](https://htmlpreview.github.io/?https://github.com/ndavd/agevault/blob/main/doc/agevault.1.html).
+
 ```text
 lock/unlock directory with passphrase-protected identity file
 usage: agevault [directory-name] lock|unlock|keygen [-pq]

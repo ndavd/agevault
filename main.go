@@ -25,6 +25,8 @@ func Usage() {
 	fmt.Println()
 	fmt.Println("lock/unlock directory with passphrase-protected identity file")
 	fmt.Println("usage: agevault [directory-name] lock|unlock|keygen [-pq]")
+	fmt.Println()
+	fmt.Println("see the agevault(1) manpage for full documentation")
 	os.Exit(0)
 }
 

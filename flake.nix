@@ -32,6 +32,10 @@
             version = "1.2.0";
             src = ./.;
             vendorHash = "sha256-yt4K+EcoZMJ36E5qolZdbDoeWp1WhVzppVx6nDrFq2s=";
+            nativeBuildInputs = [ pkgs.installShellFiles ];
+            preInstall = ''
+              installManPage doc/*.1
+            '';
           };
         in
         {
@@ -40,6 +44,7 @@
             inputsFrom = [ package ];
             packages = with pkgs; [
               gotools
+              ronn
             ];
           };
           fmt = treefmtEval.config.build.check self;

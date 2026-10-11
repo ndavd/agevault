@@ -1,0 +1,115 @@
+agevault(1) -- directory encryption tool using age file encryption
+==================================================================
+
+## SYNOPSIS
+
+`agevault` <directory> `keygen` [`-pq`]<br>
+`agevault` <directory> `lock`<br>
+`agevault` <directory> `unlock`<br>
+`agevault` `--version`
+
+## DESCRIPTION
+
+`agevault` is a directory encryption tool using age(1) file encryption.
+
+It locks/unlocks a vault (<directory>) with a passphrase-protected identity file.
+
+Like age(1), it features no config options, allowing for a straightforward secure flow.
+
+`agevault` relies entirely on `age` for the cryptography involved, inheriting its security. It provides the minimal infrastructure required for `age` to work as a directory encryption tool.
+
+Locking archives <directory>, encrypts it to <directory>`.age` and shreds <directory>. Unlocking decrypts <directory>`.age` with the identity file, restores <directory> and shreds <directory>`.age`.
+
+The identity file is named `.`<fingerprint>`.`<directory>`.key.age` and lives in the current working directory, next to the vault. It's encrypted with a passphrase for a few key reasons:
+
+* Extra security factor:
+  Having the encrypted identity file or the passphrase by itself is useless.
+
+* Easier to lock:
+  If only symmetric encryption was used, the user would need the passphrase to lock as well; this
+  way, the vault can be locked without entering the passphrase.
+
+* Multiple keys (recipients):
+  Each passphrase corresponds to its own key, so multiple people can _own_ the vault: any one of
+  them can lock it, and any one of them can unlock it with their own passphrase.
+
+### Recipients
+
+The vault is encrypted to every recipient listed in <directory>`/.agevault-recipients`. `keygen` adds its recipient automatically, and the file is locked together with the rest of the vault. For `my-vault`, it looks like this:
+
+    # agevault recipients for my-vault
+    # lines starting with # are ignored
+
+    # fingerprint: ab2a0883204b8bb5a463fe79ecde7674
+    age14p8nysmdqmlhgczshculs35kt2y8rrsx9jd9mc0rglg90rr504xsh3qzty
+
+Every recipient's fingerprint is printed on lock. Check that each one is yours or matches a fingerprint someone sent you.
+
+### Post-quantum keys
+
+`keygen -pq` generates a post-quantum identity (ML-KEM-768 + X25519) instead of an X25519 one. Its recipient starts with `age1pq1` and is much longer.
+
+`age` can't encrypt to post-quantum and X25519 recipients at the same time, so every recipient of a vault must be the same kind. `keygen` refuses to add a recipient that doesn't match the existing ones, so everyone sharing a post-quantum vault must use `keygen -pq`.
+
+## OPTIONS
+
+* `keygen`:
+  Generate a new identity, encrypt it with a passphrase into `.`<fingerprint>`.`<directory>`.key.age` and add its recipient to <directory>`/.agevault-recipients`. Creates <directory> if it doesn't exist. The vault must be unlocked.
+
+* `-pq`:
+  Only valid with `keygen`. Generate a post-quantum identity instead of an X25519 one. See [Post-quantum keys][].
+
+* `lock`:
+  Encrypt <directory> to every recipient in <directory>`/.agevault-recipients` and print their fingerprints. No passphrase is required.
+
+* `unlock`:
+  Prompt for the identity file passphrase and decrypt <directory>`.age` back into <directory>.
+
+* `--version`:
+  Print the version and exit.
+
+Running `agevault` without a command prints the usage.
+
+## BACKWARDS COMPATIBILITY
+
+Always install the latest release to make sure you have the latest security improvements and fixes. If the update has the same major version (e.g. `v1.x.x`), then it's guaranteed to be backwards compatible.
+
+Before v1.2.0, the recipient was stored in the identity filename. Vaults created with older versions are migrated automatically: the first `lock` creates `.agevault-recipients` from the existing identity file. Once it's migrated, the identity file can be renamed, as long as it keeps the `.`<directory>`.key.age` ending.
+
+Vaults locked with v1.0.0 were archived with zip instead of tar. They are still unlocked transparently, and the next `lock` uses the current format.
+
+## EXAMPLES
+
+Assuming we want to secure the directory `my-vault/`.
+
+Generate identity file:
+
+    $ agevault my-vault keygen
+    create identity passphrase:
+    confirm identity passphrase:
+    .ab2a0883204b8bb5a463fe79ecde7674.my-vault.key.age CREATED
+    ab2a0883204b8bb5a463fe79ecde7674 ADDED to my-vault/.agevault-recipients
+
+Lock vault:
+
+    $ agevault my-vault lock
+    my-vault LOCKED with:
+      ab2a0883204b8bb5a463fe79ecde7674
+
+Unlock vault:
+
+    $ agevault my-vault unlock
+    enter passphrase for identity file ".ab2a0883204b8bb5a463fe79ecde7674.my-vault.key.age":
+    my-vault UNLOCKED
+
+That's it. Do your changes, lock it again, etc.
+
+Generate a post-quantum identity file:
+
+    $ agevault my-vault keygen -pq
+
+To share a vault, the other person runs `agevault my-vault keygen` (add `-pq` for post-quantum vaults) and sends you the recipient and fingerprint from their `my-vault/.agevault-recipients`. Paste the recipient into yours and lock, then send them `my-vault.age`. They need to remove the empty `my-vault/` created by their `keygen` before unlocking.
+
+## SEE ALSO
+
+age(1)
