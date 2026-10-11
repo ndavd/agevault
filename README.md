@@ -139,5 +139,5 @@ provides the minimal infrastructure required for `age` to work as a directory en
 
 ## Planned features
 
-- [ ] Post-quantum keys
+- [x] Post-quantum keys
 - [x] Multi-user vault support
