@@ -84,8 +84,9 @@ Assuming we want to secure the directory `my-vault/`:
 
 ### Recipients
 
-The vault is encrypted to every recipient listed in `my-vault/.agevault-recipients`. `keygen` adds
-its recipient automatically, and the file is locked together with the rest of the vault.
+The vault is encrypted to every recipient listed in `<vault>/.agevault-recipients`. `keygen` adds
+its recipient automatically, and the file is locked together with the rest of the vault. For
+`my-vault`, it looks like this:
 
 ```text
 # agevault recipients for my-vault
@@ -95,10 +96,10 @@ its recipient automatically, and the file is locked together with the rest of th
 age14p8nysmdqmlhgczshculs35kt2y8rrsx9jd9mc0rglg90rr504xsh3qzty
 ```
 
-To share a vault, the other person runs `agevault my-vault keygen` and sends you the recipient and
-fingerprint from their `my-vault/.agevault-recipients`. Paste the recipient into yours and lock,
-then send them `my-vault.age`. They need to remove the empty `my-vault/` created by their `keygen`
-before unlocking.
+To share a vault, the other person runs `agevault <vault> keygen` and sends you the recipient and
+fingerprint from their `<vault>/.agevault-recipients`. Paste the recipient into yours and lock, then
+send them `<vault>.age`. They need to remove the empty `<vault>/` created by their `keygen` before
+unlocking.
 
 Every recipient's fingerprint is printed on lock. Check that each one is yours or matches a
 fingerprint someone sent you.
@@ -108,7 +109,7 @@ fingerprint someone sent you.
 Previously, the recipient was stored in the identity filename. Vaults created with older versions
 are migrated automatically: the first `lock` creates `.agevault-recipients` from the existing
 identity file. Once it's migrated, the identity file can be renamed, as long as it keeps the
-`.my-vault.key.age` ending.
+`.<vault>.key.age` ending.
 
 ## Design
 
